@@ -11,3 +11,4 @@ target/
 # Sweet Home 3D local state
 *.log
 *.lck
+/out
