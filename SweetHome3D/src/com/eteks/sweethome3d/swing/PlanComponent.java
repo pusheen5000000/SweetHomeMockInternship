@@ -2002,12 +2002,58 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     }
     return strokeWidth;
   }
-  
+
+  /**
+   * Prints the plan of each viewable level, one level after the other in the order of levels.
+   * The level selected before printing is restored once printing is done.
+   */
+  public int print(Graphics g, PageFormat pageFormat, int pageIndex) {
+    List<Level> levels = this.home.getLevels();
+    if (levels.isEmpty()) {
+      return printSelectedLevel(g, pageFormat, pageIndex);
+    }
+    Level previouslySelectedLevel = this.home.getSelectedLevel();
+    try {
+      int levelPageIndex = pageIndex;
+      for (Level level : levels) {
+        if (level.isViewable()) {
+          this.home.setSelectedLevel(level);
+          if (printSelectedLevel(g, pageFormat, levelPageIndex) == PAGE_EXISTS) {
+            return PAGE_EXISTS;
+          }
+          // Skip the pages of this level before looking at the next one
+          levelPageIndex -= getSelectedLevelPageCount(pageFormat);
+        }
+      }
+      return NO_SUCH_PAGE;
+    } finally {
+      // Restore the level selected before printing, even if a page can't be rendered
+      this.home.setSelectedLevel(previouslySelectedLevel);
+    }
+  }
+
+  /**
+   * Returns the number of pages needed to print the plan of the selected level.
+   */
+  private int getSelectedLevelPageCount(PageFormat pageFormat) {
+    BufferedImage dummyImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+    Graphics dummyGraphics = dummyImage.getGraphics();
+    try {
+      int count = 0;
+      while (printSelectedLevel(dummyGraphics, pageFormat, count) == PAGE_EXISTS) {
+        count++;
+      }
+      return count;
+    } finally {
+      dummyGraphics.dispose();
+    }
+  }
+
   /**
    * Prints this component plan at the scale given in the home print attributes or at a scale 
    * that makes it fill <code>pageFormat</code> imageable size if this attribute is <code>null</code>.
    */
-  public int print(Graphics g, PageFormat pageFormat, int pageIndex) {
+  private int printSelectedLevel(Graphics g, PageFormat pageFormat, int pageIndex) {
     List<Selectable> printedItems = getPaintedItems(); 
     Rectangle2D printedItemBounds = getItemsBounds(g, printedItems);
     if (printedItemBounds != null) {
